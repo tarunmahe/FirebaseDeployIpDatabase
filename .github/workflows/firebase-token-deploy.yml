@@ -1,0 +1,33 @@
+name: Deploy with token
+on:
+  push:
+    tags:
+      - v*
+
+  workflow_dispatch:
+
+jobs:
+  main:
+    name: Deploy to Firebase
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      # To be saved in ENV_VARS IPSTACK_API_KEY=532b78d7b8e6ff38f9f28997f90d2a58
+      - name: create env file
+        run: |
+          cd functions
+          touch .env
+          echo "${{ secrets.ENV_VARS }}" >> .env
+      - name: Install npm packages
+        run: |
+          cd functions
+          npm install
+          npm install firebase-tools
+
+      # Deploying the functions to firebase
+      - name: Deploy to Firebase
+        run: |
+          cd functions
+          npm run deploy
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

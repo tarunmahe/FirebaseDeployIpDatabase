@@ -1,11 +1,22 @@
-name: Deploy CI/CD
+name: Deploy with service account
 # on:
 #   push:
 #     tags:
 #       - v*
+
+# Permission to be added in service account
+# Service Account User,
+# Artifact Registry Repository Administrator,
+# Cloud RuntimeConfig Admin,
+# Firebase Authentication Viewer,
+# Cloud Functions Admin (for 1st gen Functions Developer should be enough),
+# Cloud Scheduler Admin
+# openssl base64 -in 3365aef35712.json
+# https://medium.com/@jankir/how-to-deploy-firebase-functions-in-ci-using-a-service-account-key-with-801be78251cf
+
 on:
   push:
-    branches: [main]
+    branches: [deploy]
 
   workflow_dispatch:
 
@@ -22,7 +33,10 @@ jobs:
         run: |
           echo "${{ secrets.DEV_GOOGLE_APPLICATION_CREDENTIALS }}" | base64 --decode > "google-application-credentials.json"
 
-      - name: create env file
+      - name:
+          create env file
+          # To be saved in ENV_VARS IPSTACK_API_KEY=532b78d7b8e6ff38f9f28997f90d2a58
+
         run: |
           cd functions
           touch .env
