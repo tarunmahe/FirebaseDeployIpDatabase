@@ -1,4 +1,4 @@
-name: Deploy a tag
+name: Deploy CI/CD
 # on:
 #   push:
 #     tags:
@@ -19,7 +19,7 @@ jobs:
         run: |
           cd functions
           touch .env
-          echo "${{ secrets.ENV_VARS }}" >> .env
+          echo "${{ secrets.IPSTACK_API_KEY }}" >> .env
       - name: Install npm packages
         run: |
           cd functions
