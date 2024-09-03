@@ -41,7 +41,7 @@ jobs:
       # Deploying the functions to firebase
       - name: Deploy to Firebase
         shell: bash
-        run: firebase deploy --only functions --non-interactive --debug
+        run: firebase deploy --only functions --non-interactive
 
       - name: Remove credentials file
         if: success() || failure()
