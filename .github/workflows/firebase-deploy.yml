@@ -21,7 +21,6 @@ jobs:
         shell: bash
         run: |
           echo "${{ secrets.DEV_GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}" | base64 --decode > "google-application-credentials.json"
-\
 
       - name: create env file
         run: |
