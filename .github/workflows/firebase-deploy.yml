@@ -5,7 +5,7 @@ name: Deploy CI/CD
 #       - v*
 on:
   push:
-    branches: [deploy]
+    branches: [main]
 
   workflow_dispatch:
 
@@ -19,7 +19,7 @@ jobs:
         run: |
           cd functions
           touch .env
-          echo "${{ secrets.IPSTACK_API_KEY }}" >> .env
+          echo "${{ secrets.ENV_VARS }}" >> .env
       - name: Install npm packages
         run: |
           cd functions
