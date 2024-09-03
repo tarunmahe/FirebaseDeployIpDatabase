@@ -86,6 +86,7 @@ exports.handleCountryUpdates = functions.database
     }
     return null;
   });
+
 exports.init = functions.https.onRequest(async (req, res) => {
   try {
     // Step 1: Get the IP address from the request headers
