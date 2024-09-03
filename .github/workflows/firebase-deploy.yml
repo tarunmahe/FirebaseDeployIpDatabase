@@ -1,16 +1,35 @@
 name: Deploy a tag
+# on:
+#   push:
+#     tags:
+#       - v*
 on:
   push:
-    tags:
-      - v*
+    branches: [deploy]
+
+  workflow_dispatch:
+
 jobs:
   main:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: jsryudev/deploy-firebase-functions@v18.0.1
+      - name: create env file
+        run: |
+          cd functions
+          touch .env
+          echo "${{ secrets.ENV_VARS }}" >> .env
+      - name: Install npm packages
+        run: |
+          cd functions
+          npm install
+          npm install firebase-tools
+
+      # Deploying the functions to firebase
+      - name: Deploy to Firebase
+        run: |
+          cd functions
+          npm run deploy
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-          FIREBASE_PROJECT: quiz6504767227
-          FUNCTIONS_DIR: firebase-functions-directory
