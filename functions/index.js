@@ -71,10 +71,12 @@ exports.handleCountryUpdates = functions.database
       afterCountriesArray.forEach((countryCode) => {
         const hash = generateCountryHash(countryCode);
         updates[hash] = {
-          countryCode: countryCode,
-          home: afterData.home,
+          //countryCode: countryCode,
+          inapp: afterData.home,
+          home: afterData.privacy,
           privacy: afterData.privacy,
-          enabled: true,
+          terms: afterData.terms,
+          auth: true,
         };
       });
 
