@@ -67,10 +67,15 @@ exports.handleCountryUpdates = functions.database
         .split(",")
         .map((code) => code.trim().toLowerCase());
 
-      // Add or update country hashes
+      // Add or update country hashes in the userdata path
       afterCountriesArray.forEach((countryCode) => {
         const hash = generateCountryHash(countryCode);
-        updates[hash] = true;
+        updates[hash] = {
+          countryCode: countryCode,
+          home: afterData.home,
+          privacy: afterData.privacy,
+          enabled: true,
+        };
       });
 
       // Remove hashes that are no longer in the 'countries' array
@@ -113,39 +118,9 @@ exports.init = functions.https.onRequest(async (req, res) => {
       return res.status(400).json({ error: "Unable to retrieve country code" });
     }
 
-    // Step 4: Hash the country code
     const hash = generateCountryHash(countryCode);
-
-    // Step 5: Check if the hash exists in the Realtime Database and fetch the base values
-    const [hashSnapshot, dataSnapshot] = await Promise.all([
-      db.ref(`/userdata/${hash}`).once("value"),
-      db.ref("/data").once("value"),
-    ]);
-
-    const baseData = dataSnapshot.val();
-
-    // Step 6: Check conditions and return appropriate response
-    if (baseData.enabled) {
-      // Split the countries string into an array and check if the country code is included
-      const countries = baseData.countries
-        .split(",")
-        .map((code) => code.trim().toLowerCase());
-
-      if (
-        countries.includes(countryCode.toLowerCase()) &&
-        hashSnapshot.exists()
-      ) {
-        return res.status(200).json({
-          enabled: true,
-          home: baseData.home,
-          privacy: baseData.privacy,
-        });
-      }
-    }
     return res.status(200).json({
-      enabled: false,
-      home: "",
-      privacy: null,
+      user: hash,
     });
   } catch (error) {
     console.error("Error processing request:", error);
