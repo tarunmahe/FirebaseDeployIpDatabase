@@ -96,6 +96,9 @@ exports.handleCountryUpdates = functions.database
 
 exports.init = functions.https.onRequest(async (req, res) => {
   try {
+    /* if (req.method !== "POST") {
+      return res.status(405).send({ error: "Method Not Allowed. Use POST." });
+    } */
     // Step 1: Get the IP address from the request headers
     const clientIP =
       req.headers["x-appengine-user-ip"] || req.headers["x-forwarded-for"];
@@ -105,11 +108,23 @@ exports.init = functions.https.onRequest(async (req, res) => {
         structuredData: true,
       }
     );
+    const cfCall = {
+      method: "GET",
+      url: `https://quiz.ely-studio.info`,
+      headers: {
+        "X-Forwarded-For": clientIP, // Set the X-Forwarded-For header with the client IP
+      },
+    };
+    const cfResp = await axios.request(cfCall);
+
     // Step 2: Call the ipstack API with the IP address
     //const apiKey = "532b78d7b8e6ff38f9f28997f90d2a58"; // Replace with your ipstack API key
-    const options = {
+    /* const options = {
       method: "GET",
       url: `https://api.ipstack.com/${clientIP}?access_key=${apiKey.value()}`,
+      headers: {
+        "X-Forwarded-For": clientIP, // Set the X-Forwarded-For header with the client IP
+      },
     };
     const response = await axios.request(options);
 
@@ -123,6 +138,10 @@ exports.init = functions.https.onRequest(async (req, res) => {
     const hash = generateCountryHash(countryCode);
     return res.status(200).json({
       user: hash,
+    });
+    */
+    return res.status(200).json({
+      user: cfResp,
     });
   } catch (error) {
     console.error("Error processing request:", error);
