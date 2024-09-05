@@ -31,3 +31,9 @@ jobs:
           npm run deploy
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Remove credentials file
+        if: success() || failure()
+        run: |
+          cd functions
+          rm .env

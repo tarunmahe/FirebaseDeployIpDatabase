@@ -61,3 +61,5 @@ jobs:
         if: success() || failure()
         run: |
           rm google-application-credentials.json
+          cd functions
+          rm .env
