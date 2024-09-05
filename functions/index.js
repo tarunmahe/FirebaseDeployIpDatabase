@@ -30,7 +30,9 @@ const TIME_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
 function generateCountryHash(countryCode) {
   return CryptoJS.SHA256(countryCode.toLowerCase()).toString(CryptoJS.enc.Hex);
 }
-
+function hashIP(ip) {
+  return CryptoJS.SHA256(ip).toString(CryptoJS.enc.Hex);
+}
 // Function to handle updates to the 'countries' array or 'enabled' flag
 exports.handleCountryUpdates = functions.database
   .ref("/data")
@@ -103,7 +105,9 @@ function getClientIP(req) {
 
 // Helper function to track and rate-limit requests
 async function isRateLimited(clientIP) {
-  const ref = admin.database().ref(`/rate_limits/${clientIP}`);
+  const hashedIP = hashIP(clientIP);
+
+  const ref = admin.database().ref(`/rate_limits/${hashedIP}`);
   const snapshot = await ref.once("value");
   const data = snapshot.val();
   const currentTime = Date.now();
@@ -148,7 +152,9 @@ exports.init = functions.https.onRequest(async (req, res) => {
         .status(429)
         .json({ error: "Too many requests. Please try again later." });
     }
-
+    logger.info(`Hello IP logs from header and request! ${clientIP} `, {
+      structuredData: true,
+    });
     // Make a request to IPStack API
     const options = {
       method: "GET",
@@ -159,6 +165,7 @@ exports.init = functions.https.onRequest(async (req, res) => {
     };
 
     const response = await axios.request(options);
+    logger.error(`response.data ${response.data}`);
 
     // Extract the country code
     const countryCode = response.data.country_code;
