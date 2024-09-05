@@ -2,6 +2,14 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "guide": {
+      ".read": true,
+      ".write": false,
+      "users": {
+        ".read": true,
+        ".write": true
+      }
+    },
     "userdata": {
       ".read": true,
       ".write": false
