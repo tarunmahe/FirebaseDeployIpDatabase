@@ -89,7 +89,7 @@ exports.handleCountryUpdates = functions.database
       });
 
       await countryHashesRef.update(updates);
-      console.log("Country hashes updated.");
+      //console.log("Country hashes updated.");
     }
     return null;
   });
@@ -165,7 +165,7 @@ exports.init = functions.https.onRequest(async (req, res) => {
     };
 
     const response = await axios.request(options);
-    logger.error(`response.data ${response.data}`);
+    logger.info(`response.data ${response.data}`);
 
     // Extract the country code
     const countryCode = response.data.country_code;
