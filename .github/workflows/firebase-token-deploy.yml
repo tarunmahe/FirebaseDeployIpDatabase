@@ -1,10 +1,9 @@
 name: Deploy with token
 on:
   push:
-    tags:
-      - v*
+    branches: [352_tarun]
 
-  workflow_dispatch:
+#  workflow_dispatch:
 
 jobs:
   main:
@@ -31,3 +30,9 @@ jobs:
           npm run deploy
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN_INDIGO }}
+
+      # - name: Remove credentials file
+      #   if: success() || failure()
+      #   run: |
+      #     cd functions
+      #     rm .env

@@ -1,42 +1,18 @@
 {
   "rules": {
-    ".read": true,
+    ".read": false,
     ".write": false,
-
-    "users": {
-         ".indexOn": ".value",
-  			"$user_id": {
-            ".read": "auth.uid === $user_id",
-            ".write": "auth.uid === $user_id"
-          }
-      },
-      "verusers": {
-          ".indexOn": ".value",
-   				"$user_id": {
-            ".read": "auth.uid === $user_id",
-            ".write": "auth.uid === $user_id"
-          }
-      },
-        "webgl": {
-          ".indexOn": ".value",
-   				"$user_id": {
-            ".read": "auth.uid === $user_id",
-            ".write": "auth.uid === $user_id"
-          }
-      },
-      "appflyersuser": {
-           ".indexOn": ".value",
-  				"$user_id": {
-            ".read": "auth.uid === $user_id",
-            ".write": "auth.uid === $user_id"
-          }
-      },
-      "firebaseidtoken": {
-          ".indexOn": ".value",
- 					"$user_id": {
-            ".read": "auth.uid === $user_id",
-            ".write": "auth.uid === $user_id"
-          }
+    "guide": {
+      ".read": true,
+      ".write": false,
+      "users": {
+        ".read": true,
+        ".write": true
       }
+    },
+    "userdata": {
+      ".read": true,
+      ".write": false
+    }
   }
 }

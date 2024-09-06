@@ -7,11 +7,6 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const {
-  onCall,
-  HttpsError,
-  onRequest,
-} = require("firebase-functions/v2/https");
 const { logger } = require("firebase-functions");
 //const express = require("express");
 //const app = express();
@@ -29,10 +24,15 @@ const admin = require("firebase-admin");
 const db = admin.database();
 const apiKey = defineString("IPSTACK_API_KEY");
 
+const REQUEST_LIMIT = 10;
+const TIME_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
+
 function generateCountryHash(countryCode) {
   return CryptoJS.SHA256(countryCode.toLowerCase()).toString(CryptoJS.enc.Hex);
 }
-
+function hashIP(ip) {
+  return CryptoJS.SHA256(ip).toString(CryptoJS.enc.Hex);
+}
 // Function to handle updates to the 'countries' array or 'enabled' flag
 exports.handleCountryUpdates = functions.database
   .ref("/data")
@@ -89,41 +89,92 @@ exports.handleCountryUpdates = functions.database
       });
 
       await countryHashesRef.update(updates);
-      console.log("Country hashes updated.");
+      //console.log("Country hashes updated.");
     }
     return null;
   });
 
+// Helper function to get IP
+function getClientIP(req) {
+  return (
+    req.headers["x-appengine-user-ip"] ||
+    req.headers["x-forwarded-for"] ||
+    req.connection.remoteAddress
+  );
+}
+
+// Helper function to track and rate-limit requests
+async function isRateLimited(clientIP) {
+  const hashedIP = hashIP(clientIP);
+
+  const ref = admin.database().ref(`/rate_limits/${hashedIP}`);
+  const snapshot = await ref.once("value");
+  const data = snapshot.val();
+  const currentTime = Date.now();
+
+  // If no record exists, create a new one
+  if (!data) {
+    await ref.set({ count: 1, firstRequestTime: currentTime });
+    return false; // Not rate-limited
+  }
+
+  // Check if the time window has passed
+  const timeDiff = currentTime - data.firstRequestTime;
+  if (timeDiff > TIME_WINDOW) {
+    // Reset the count and time window
+    await ref.set({ count: 1, firstRequestTime: currentTime });
+    return false; // Not rate-limited
+  }
+
+  // Check if the user has exceeded the request limit
+  if (data.count >= REQUEST_LIMIT) {
+    return true; // Rate-limited
+  }
+
+  // Increment the request count
+  await ref.update({ count: data.count + 1 });
+  return false; // Not rate-limited
+}
+
+// Cloud Function to handle requests
 exports.init = functions.https.onRequest(async (req, res) => {
   try {
-    // Step 1: Get the IP address from the request headers
-    const clientIP =
-      req.headers["x-appengine-user-ip"] || req.headers["x-forwarded-for"];
-    logger.info(
-      `Hello IP: ${req.headers["x-appengine-user-ip"]} : ${req.headers["x-forwarded-for"]} : ${req.connection.remoteAddress}`,
-      {
-        structuredData: true,
-      }
-    );
-    // Step 2: Call the ipstack API with the IP address
-    //const apiKey = "532b78d7b8e6ff38f9f28997f90d2a58"; // Replace with your ipstack API key
+    if (req.method !== "POST") {
+      return res.status(405).send({ error: "Method Not Allowed. Use POST." });
+    }
+
+    const clientIP = getClientIP(req);
+
+    // Check if the client IP is rate-limited
+    const rateLimited = await isRateLimited(clientIP);
+    if (rateLimited) {
+      return res
+        .status(429)
+        .json({ error: "Too many requests. Please try again later." });
+    }
+    logger.info(`Hello IP logs from header and request! ${clientIP} `, {
+      structuredData: true,
+    });
+    // Make a request to IPStack API
     const options = {
       method: "GET",
       url: `https://api.ipstack.com/${clientIP}?access_key=${apiKey.value()}`,
+      headers: {
+        "X-Forwarded-For": clientIP,
+      },
     };
+
     const response = await axios.request(options);
+    logger.info(`response.data ${response.data}`);
 
-    // Step 3: Extract the country code from the response
+    // Extract the country code
     const countryCode = response.data.country_code;
-
     if (!countryCode) {
       return res.status(400).json({ error: "Unable to retrieve country code" });
     }
 
     const hash = generateCountryHash(countryCode);
-    return res.status(200).json({
-      user: hash,
-    });
+    return res.status(200).json({ user: hash });
   } catch (error) {
     console.error("Error processing request:", error);
     res.status(500).json({ error: "Internal server error" });
