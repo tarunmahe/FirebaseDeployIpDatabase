@@ -1,9 +1,9 @@
 name: Deploy with token
 on:
   push:
-    branches: [352_tarun]
+    branches: [deploy]
 
-#  workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   main:
