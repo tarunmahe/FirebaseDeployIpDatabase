@@ -11,17 +11,19 @@ const { logger } = require("firebase-functions");
 //const express = require("express");
 //const app = express();
 const axios = require("axios");
-const { getDatabase } = require("firebase-admin/database");
 const { defineString } = require("firebase-functions/params");
+//const { defineSecret } = require("firebase-functions/params");
 
 const { initializeApp } = require("firebase-admin/app");
 initializeApp();
 const CryptoJS = require("crypto-js");
-const functions = require("firebase-functions");
+const { onRequest } = require("firebase-functions/v2/https");
+const { onValueUpdated } = require("firebase-functions/v2/database");
 
 const admin = require("firebase-admin");
 
 const db = admin.database();
+//const apiKey = defineString("IPSTACK_API_KEY");
 const apiKey = defineString("IPSTACK_API_KEY");
 
 const REQUEST_LIMIT = 10;
@@ -34,11 +36,11 @@ function hashIP(ip) {
   return CryptoJS.SHA256(ip).toString(CryptoJS.enc.Hex);
 }
 // Function to handle updates to the 'countries' array or 'enabled' flag
-exports.handleCountryUpdates = functions.database
-  .ref("/data")
-  .onUpdate(async (change, context) => {
-    const beforeData = change.before.val();
-    const afterData = change.after.val();
+exports.handleCountryUpdates = onValueUpdated(
+  { ref: "/data" },
+  async (event) => {
+    const beforeData = event.data.before.val();
+    const afterData = event.data.after.val();
 
     const beforeCountries = (beforeData.countries || "").toString();
     const afterCountries = (afterData.countries || "").toString();
@@ -92,7 +94,8 @@ exports.handleCountryUpdates = functions.database
       //console.log("Country hashes updated.");
     }
     return null;
-  });
+  }
+);
 
 // Helper function to get IP
 function getClientIP(req) {
@@ -137,7 +140,7 @@ async function isRateLimited(clientIP) {
 }
 
 // Cloud Function to handle requests
-exports.init = functions.https.onRequest(async (req, res) => {
+exports.registerUser = onRequest(async (req, res) => {
   try {
     if (req.method !== "POST") {
       return res.status(405).send({ error: "Method Not Allowed. Use POST." });

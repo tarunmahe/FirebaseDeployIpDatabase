@@ -66,3 +66,4 @@ node_modules/
 .env
 functions/.env.quiz6504767227
 functions/.env.master6670440218
+*.env*
