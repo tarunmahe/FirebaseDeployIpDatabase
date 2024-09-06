@@ -1,8 +1,7 @@
 name: Deploy with token
 on:
   push:
-    tags:
-      - v*
+    branches: [352_tarun]
 
 #  workflow_dispatch:
 
