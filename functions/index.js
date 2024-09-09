@@ -36,7 +36,7 @@ function hashIP(ip) {
   return CryptoJS.SHA256(ip).toString(CryptoJS.enc.Hex);
 }
 // Function to handle updates to the 'countries' array or 'enabled' flag
-exports.handleCountryUpdates = onValueUpdated(
+exports.handleDbCountryUpdates = onValueUpdated(
   { ref: "/data" },
   async (event) => {
     const beforeData = event.data.before.val();
