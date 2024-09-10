@@ -140,7 +140,7 @@ async function isRateLimited(clientIP) {
 }
 
 // Cloud Function to handle requests
-exports.registerUser = onRequest(async (req, res) => {
+exports.initApp = onRequest(async (req, res) => {
   try {
     if (req.method !== "POST") {
       return res.status(405).send({ error: "Method Not Allowed. Use POST." });

@@ -2,7 +2,7 @@
   "rules": {
     ".read": false,
     ".write": false,
-    "guide": {
+    "tactics": {
       ".read": true,
       ".write": false,
       "users": {
