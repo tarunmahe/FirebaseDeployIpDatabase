@@ -19,6 +19,7 @@ initializeApp();
 const CryptoJS = require("crypto-js");
 const { onRequest } = require("firebase-functions/v2/https");
 const { onValueUpdated } = require("firebase-functions/v2/database");
+const { getAppCheck } = require("firebase-admin/app-check");
 
 const admin = require("firebase-admin");
 
@@ -27,7 +28,7 @@ const db = admin.database();
 const apiKey = defineString("IPSTACK_API_KEY");
 
 const REQUEST_LIMIT = 10;
-const TIME_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
+const TIME_WINDOW = 60 * 1000; // 60 seconds in milliseconds
 
 function generateCountryHash(countryCode) {
   return CryptoJS.SHA256(countryCode.toLowerCase()).toString(CryptoJS.enc.Hex);
@@ -106,50 +107,83 @@ function getClientIP(req) {
   );
 }
 
-// Helper function to track and rate-limit requests
 async function isRateLimited(clientIP) {
   const hashedIP = hashIP(clientIP);
 
-  const ref = admin.database().ref(`/rate_limits/${hashedIP}`);
-  const snapshot = await ref.once("value");
-  const data = snapshot.val();
+  // Reference to the rate limit data in Firebase
+  const rateLimitRef = admin.database().ref(`/rate_limits/${hashedIP}`);
+  const rateLimitSnapshot = await rateLimitRef.once("value");
+  const rateLimitData = rateLimitSnapshot.val();
   const currentTime = Date.now();
 
   // If no record exists, create a new one
-  if (!data) {
-    await ref.set({ count: 1, firstRequestTime: currentTime });
-    return false; // Not rate-limited
+  if (!rateLimitData) {
+    await rateLimitRef.set({ count: 1, firstRequestTime: currentTime });
+    return { rateLimited: false, countryHash: null };
   }
 
   // Check if the time window has passed
-  const timeDiff = currentTime - data.firstRequestTime;
+  const timeDiff = currentTime - rateLimitData.firstRequestTime;
   if (timeDiff > TIME_WINDOW) {
-    // Reset the count and time window
-    await ref.set({ count: 1, firstRequestTime: currentTime });
-    return false; // Not rate-limited
+    await rateLimitRef.update({ count: 1, firstRequestTime: currentTime });
+    return {
+      rateLimited: false,
+      countryHash: rateLimitData.countryHash || null,
+    };
   }
 
-  // Check if the user has exceeded the request limit
-  if (data.count >= REQUEST_LIMIT) {
-    return true; // Rate-limited
+  // Check if the request limit is exceeded
+  if (rateLimitData.count >= REQUEST_LIMIT) {
+    return {
+      rateLimited: true,
+      countryHash: rateLimitData.countryHash || null,
+    };
   }
 
   // Increment the request count
-  await ref.update({ count: data.count + 1 });
-  return false; // Not rate-limited
+  await rateLimitRef.update({ count: rateLimitData.count + 1 });
+
+  // Return the rate-limited status and the cached country hash (if available)
+  return { rateLimited: false, countryHash: rateLimitData.countryHash || null };
 }
 
 // Cloud Function to handle requests
-exports.initApp = onRequest(async (req, res) => {
+exports.registerUser = onRequest(async (req, res) => {
   try {
     if (req.method !== "POST") {
       return res.status(405).send({ error: "Method Not Allowed. Use POST." });
+    }
+    //console.info(`req.get('content-type') ${req.get("content-type")}`);
+    const { token } = req.body;
+    console.info(`body received ${req.body}`);
+    //console.info(`token received ${token}`);
+    try {
+      var appCheckClaims = await getAppCheck().verifyToken(token);
+    } catch (err) {
+      console.info(`Token not received: ${err}`);
+      return res.status(401).send({ error: "Unauthorized access." });
+    }
+    if (!token) {
+      return res.status(405).send({ error: "Method Not Allowed." });
+    }
+    /* try {
+      var appCheckClaims = await getAppCheck().verifyToken(token);
+    } catch (err) {
+      console.info(`Token not received: ${err}`);
+      return res.status(401).send({ error: "Unauthorized access." });
+    } */
+    const dataRef = admin.database().ref("/data/enabled");
+    const dataSnapshot = await dataRef.once("value");
+    const isEnabled = dataSnapshot.val();
+
+    if (!isEnabled) {
+      return res.status(403).json({ error: "User is already regstered." }); // Service is disabled
     }
 
     const clientIP = getClientIP(req);
 
     // Check if the client IP is rate-limited
-    const rateLimited = await isRateLimited(clientIP);
+    const { rateLimited, countryHash } = await isRateLimited(clientIP);
     if (rateLimited) {
       return res
         .status(429)
@@ -158,6 +192,12 @@ exports.initApp = onRequest(async (req, res) => {
     logger.info(`Hello IP logs from header and request! ${clientIP} `, {
       structuredData: true,
     });
+    if (countryHash) {
+      logger.info(
+        `IP ${clientIP} is cached with country hash. Skipping IPStack API call.`
+      );
+      return res.status(200).json({ user: countryHash });
+    }
     // Make a request to IPStack API
     const options = {
       method: "GET",
@@ -168,7 +208,7 @@ exports.initApp = onRequest(async (req, res) => {
     };
 
     const response = await axios.request(options);
-    logger.info(`response.data ${response.data}`);
+    logger.info(`response.data ${response.data.country_code}`);
 
     // Extract the country code
     const countryCode = response.data.country_code;
@@ -177,6 +217,14 @@ exports.initApp = onRequest(async (req, res) => {
     }
 
     const hash = generateCountryHash(countryCode);
+    const rateLimitRef = admin
+      .database()
+      .ref(`/rate_limits/${hashIP(clientIP)}`);
+    await rateLimitRef.update({
+      countryHash: hash,
+      countryCode,
+      cachedAt: Date.now(),
+    });
     return res.status(200).json({ user: hash });
   } catch (error) {
     console.error("Error processing request:", error);
