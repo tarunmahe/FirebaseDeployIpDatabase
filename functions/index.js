@@ -19,6 +19,7 @@ initializeApp();
 const CryptoJS = require("crypto-js");
 const { onRequest } = require("firebase-functions/v2/https");
 const { onValueUpdated } = require("firebase-functions/v2/database");
+const { getAppCheck } = require("firebase-admin/app-check");
 
 const admin = require("firebase-admin");
 
@@ -145,6 +146,28 @@ exports.registerUser = onRequest(async (req, res) => {
     if (req.method !== "POST") {
       return res.status(405).send({ error: "Method Not Allowed. Use POST." });
     }
+    //console.info(`req.get('content-type') ${req.get("content-type")}`);
+    const { token } = req.body;
+    console.info(`body received ${req.body}`);
+    //console.info(`token received ${token}`);
+
+    if (!token) {
+      return res.status(405).send({ error: "Method Not Allowed." });
+    }
+    /* try {
+      var appCheckClaims = await getAppCheck().verifyToken(token);
+    } catch (err) {
+      console.info(`Token not received: ${err}`);
+      return res.status(401).send({ error: "Unauthorized access." });
+    } */
+    /// Before performing rate-limiting or making any external API calls, the function checks if the /data/enabled flag in the Firebase Realtime Database is set to false. If it is false, the function immediately returns a 403 Forbidden status, indicating that the service is currently disabled.
+    const dataRef = admin.database().ref("/data/enabled");
+    const dataSnapshot = await dataRef.once("value");
+    const isEnabled = dataSnapshot.val();
+
+    if (!isEnabled) {
+      return res.status(403).json({ error: "User is already regstered." }); // Service is disabled
+    }
 
     const clientIP = getClientIP(req);
 
@@ -168,7 +191,7 @@ exports.registerUser = onRequest(async (req, res) => {
     };
 
     const response = await axios.request(options);
-    logger.info(`response.data ${response.data}`);
+    logger.info(`response.data ${response.data.country_code}`);
 
     // Extract the country code
     const countryCode = response.data.country_code;
