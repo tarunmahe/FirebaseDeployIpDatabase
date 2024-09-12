@@ -11,7 +11,7 @@ const { logger } = require("firebase-functions");
 //const express = require("express");
 //const app = express();
 const axios = require("axios");
-const { defineString } = require("firebase-functions/params");
+const { defineString, defineBoolean } = require("firebase-functions/params");
 //const { defineSecret } = require("firebase-functions/params");
 
 const { initializeApp } = require("firebase-admin/app");
@@ -26,6 +26,7 @@ const admin = require("firebase-admin");
 const db = admin.database();
 //const apiKey = defineString("IPSTACK_API_KEY");
 const apiKey = defineString("IPSTACK_API_KEY");
+const isDebug = defineBoolean("IS_DEBUG");
 
 const REQUEST_LIMIT = 10;
 const TIME_WINDOW = 60 * 1000; // 60 seconds in milliseconds
@@ -148,7 +149,7 @@ async function isRateLimited(clientIP) {
 }
 
 // Cloud Function to handle requests
-exports.registerUser = onRequest(async (req, res) => {
+exports.initialize = onRequest(async (req, res) => {
   try {
     if (req.method !== "POST") {
       return res.status(405).send({ error: "Method Not Allowed. Use POST." });
@@ -161,11 +162,14 @@ exports.registerUser = onRequest(async (req, res) => {
       var appCheckClaims = await getAppCheck().verifyToken(token);
     } catch (err) {
       console.info(`Token not received: ${err}`);
-      return res.status(401).send({ error: "Unauthorized access." });
+      if (isDebug.value() !== true)
+        return res.status(401).send({ error: "Unauthorized access." });
     }
     if (!token) {
       return res.status(405).send({ error: "Method Not Allowed." });
     }
+
+
     /* try {
       var appCheckClaims = await getAppCheck().verifyToken(token);
     } catch (err) {
